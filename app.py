@@ -196,7 +196,17 @@ def main():
                 st.stop()
 
     if image_bgr is not None:
-        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+        gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+        face = largest_face(detector, gray)
+        points = None
+        
+        display_bgr = image_bgr.copy()
+        if face is not None:
+            points = landmarks_68(predictor, gray, face)
+            for point in points:
+                cv2.circle(display_bgr, tuple(point), 3, (0, 255, 0), -1)
+                
+        display_rgb = cv2.cvtColor(display_bgr, cv2.COLOR_BGR2RGB)
         
         st.sidebar.markdown("---")
         st.sidebar.markdown("<br>", unsafe_allow_html=True)
@@ -206,32 +216,26 @@ def main():
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("<h4 style='text-align: center;'>🖼️ Gambar Asli</h4>", unsafe_allow_html=True)
-            st.image(image_rgb, use_container_width=True)
+            st.markdown("<h4 style='text-align: center;'>🖼️ Gambar Asli (dengan Landmarks)</h4>", unsafe_allow_html=True)
+            st.image(display_rgb, use_container_width=True)
 
         with col2:
             st.markdown("<h4 style='text-align: center;'>📏 Hasil Pemrosesan</h4>", unsafe_allow_html=True)
             if process_btn:
-                with st.spinner("Mendeteksi wajah dan memproses gambar..."):
+                with st.spinner("Memutar dan meluruskan gambar..."):
                     try:
-                        gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-                        
-                        face = largest_face(detector, gray)
-                        if face is None:
+                        if face is None or points is None:
                             st.warning("Tidak ada wajah yang terdeteksi pada gambar ini.")
-                            st.stop()
-
-                        points = landmarks_68(predictor, gray, face)
-                        
-                        left_eye = eye_center(points, LEFT_EYE)
-                        right_eye = eye_center(points, RIGHT_EYE)
-                        
-                        aligned_bgr, _ = rotate_to_align(image_bgr, left_eye, right_eye, points)
-                        
-                        final_image = cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2RGB)
-                        
-                        st.image(final_image, use_container_width=True)
-                        st.success("✅ Wajah berhasil diluruskan!")
+                        else:
+                            left_eye = eye_center(points, LEFT_EYE)
+                            right_eye = eye_center(points, RIGHT_EYE)
+                            
+                            aligned_bgr, _ = rotate_to_align(image_bgr, left_eye, right_eye, points)
+                            
+                            final_image = cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2RGB)
+                            
+                            st.image(final_image, use_container_width=True)
+                            st.success("✅ Wajah berhasil diluruskan!")
 
                     except Exception as e:
                         st.error(f"Terjadi kesalahan saat memproses gambar: {e}")
