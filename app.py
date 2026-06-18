@@ -196,6 +196,11 @@ def main():
                 st.stop()
 
     if image_bgr is not None:
+        st.sidebar.markdown("---")
+        show_landmarks = st.sidebar.checkbox("🟢 Tampilkan Titik Landmarks", value=False)
+        st.sidebar.markdown("<br>", unsafe_allow_html=True)
+        process_btn = st.sidebar.button("✨ Luruskan Wajah", type="primary", use_container_width=True)
+
         gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
         face = largest_face(detector, gray)
         points = None
@@ -203,19 +208,16 @@ def main():
         display_bgr = image_bgr.copy()
         if face is not None:
             points = landmarks_68(predictor, gray, face)
-            display_bgr = draw_landmarks(image_bgr, points)
+            if show_landmarks:
+                display_bgr = draw_landmarks(image_bgr, points)
                 
         display_rgb = cv2.cvtColor(display_bgr, cv2.COLOR_BGR2RGB)
-        
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("<br>", unsafe_allow_html=True)
-        process_btn = st.sidebar.button("✨ Luruskan Wajah", type="primary", use_container_width=True)
 
         # Layout Utama
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("<h4 style='text-align: center;'>🖼️ Gambar Asli (dengan Landmarks)</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='text-align: center;'>🖼️ Gambar Asli</h4>", unsafe_allow_html=True)
             st.image(display_rgb, use_container_width=True)
 
         with col2:
