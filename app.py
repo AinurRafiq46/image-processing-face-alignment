@@ -243,5 +243,10 @@ def main():
             else:
                 st.info("👈 Tekan tombol **✨ Luruskan Wajah** di panel sebelah kiri untuk melihat hasil.")
 
+        st.markdown("---")
+        with st.expander("🔍 Tampilkan Proses Konversi Grayscale (Hitam Putih)"):
+            st.info("Gambar ini adalah versi **grayscale** dari input asli Anda. Algoritma pendeteksi tidak membutuhkan warna, sehingga membuang data warna akan sangat mempercepat proses komputasi pencarian posisi wajah.")
+            st.image(gray, caption="Hasil Konversi Grayscale", use_container_width=True)
+
 if __name__ == "__main__":
     main()
