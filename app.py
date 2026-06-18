@@ -143,9 +143,10 @@ def draw_landmarks(image, points):
 # ==========================================
 def main():
     st.title("🧑‍💻 Face Alignment with dlib")
-    st.markdown("""
-    Aplikasi web ini menggunakan algoritma **Face Alignment** untuk meluruskan posisi kepala
-    berdasarkan titik mata menggunakan model 68-landmarks dari `dlib`.
+    st.info("""
+    Aplikasi ini menggunakan algoritma **Face Alignment** untuk mengoreksi dan meluruskan **posisi muka** agar lebih simetris. 
+    Dengan mendeteksi letak titik mata menggunakan model *68-landmarks* dari `dlib`, kemiringan wajah akan dihitung dan gambar 
+    diputar secara otomatis. Proses ini sangat berguna sebagai tahap pra-pemrosesan untuk meningkatkan akurasi sistem pengenalan wajah.
     """)
 
     # --- Bagian Memuat Model ---
@@ -156,101 +157,86 @@ def main():
         st.error(str(e))
         st.stop() # Hentikan aplikasi jika model tidak ditemukan
 
-    # --- Bagian Sumber Gambar ---
-    st.markdown("### 📁 Sumber Gambar")
-    source_option = st.radio("Pilih sumber gambar:", ["Pilih dari Contoh (Folder 'image')", "Unggah Gambar Sendiri (Upload)"], horizontal=True)
+    # --- Pindahkan Kontrol ke Sidebar ---
+    st.sidebar.title("⚙️ Pengaturan")
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📁 Sumber Gambar")
+    source_option = st.sidebar.radio("Pilih sumber gambar:", ["Contoh (Folder 'image')", "Unggah Sendiri (Upload)"])
     
     image_bgr = None
     
-    if source_option == "Pilih dari Contoh (Folder 'image')":
+    if source_option == "Contoh (Folder 'image')":
         image_dir = Path("image")
         if image_dir.exists():
             image_files = [f.name for f in image_dir.iterdir() if f.is_file() and f.suffix.lower() in [".jpg", ".jpeg", ".png", ".webp"]]
             if image_files:
-                selected_image = st.selectbox("Pilih Gambar Contoh:", image_files)
+                selected_image = st.sidebar.selectbox("Pilih Gambar Contoh:", image_files)
                 image_path = image_dir / selected_image
-                # Membaca gambar dari path
                 image_bgr = cv2.imread(str(image_path))
                 if image_bgr is None:
-                    st.error("Gagal membaca gambar dari folder.")
+                    st.sidebar.error("Gagal membaca gambar.")
                     st.stop()
             else:
-                st.warning("Tidak ada file gambar di dalam folder 'image'.")
+                st.sidebar.warning("Tidak ada file gambar di dalam folder 'image'.")
         else:
-            st.warning("Folder 'image' tidak ditemukan.")
+            st.sidebar.warning("Folder 'image' tidak ditemukan.")
             
     else:
-        # --- Bagian Upload Gambar ---
-        uploaded_file = st.file_uploader(
-            "Unggah gambar wajah (JPG, JPEG, PNG, WEBP)", 
+        uploaded_file = st.sidebar.file_uploader(
+            "Unggah gambar wajah", 
             type=["jpg", "jpeg", "png", "webp"]
         )
 
         if uploaded_file is not None:
-            # Konversi file unggahan menjadi array byte yang bisa dibaca OpenCV
             file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
             image_bgr = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
             if image_bgr is None:
-                st.error("Gagal membaca gambar. Silakan coba file lain atau format lain.")
+                st.sidebar.error("Gagal membaca gambar.")
                 st.stop()
 
     if image_bgr is not None:
-
-        # Catatan: OpenCV menggunakan format warna BGR, sedangkan Streamlit/Browser menggunakan RGB.
-        # Oleh karena itu, kita harus mengkonversi warnanya sebelum ditampilkan.
         image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
         
-        # Buat layout 2 kolom (Kiri untuk Asli, Kanan untuk Lurus)
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("<br>", unsafe_allow_html=True)
+        process_btn = st.sidebar.button("✨ Luruskan Wajah", type="primary", use_container_width=True)
+
+        # Layout Utama
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("🖼️ Gambar Asli")
+            st.markdown("<h4 style='text-align: center;'>🖼️ Gambar Asli</h4>", unsafe_allow_html=True)
             st.image(image_rgb, use_container_width=True)
 
-        st.markdown("<hr>", unsafe_allow_html=True)
-        st.subheader("⚙️ Pengaturan Pemrosesan")
-        
-        show_landmarks = st.checkbox("🟢 Tampilkan Titik Deteksi (Landmarks)", value=False)
+        with col2:
+            st.markdown("<h4 style='text-align: center;'>📏 Hasil Pemrosesan</h4>", unsafe_allow_html=True)
+            if process_btn:
+                with st.spinner("Mendeteksi wajah dan memproses gambar..."):
+                    try:
+                        gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+                        
+                        face = largest_face(detector, gray)
+                        if face is None:
+                            st.warning("Tidak ada wajah yang terdeteksi pada gambar ini.")
+                            st.stop()
 
-        # Tombol Proses di tengah layout
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("✨ Luruskan Wajah (Align Face)", type="primary", use_container_width=True):
-            with st.spinner("Mendeteksi wajah dan memproses gambar..."):
-                try:
-                    # Ubah gambar ke hitam putih untuk algoritma pendeteksi wajah dlib agar lebih cepat
-                    gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-                    
-                    # Tahap 1: Deteksi Wajah (Aman dengan Downscaling Otomatis)
-                    face = largest_face(detector, gray)
-                    if face is None:
-                        st.warning("Tidak ada wajah yang terdeteksi pada gambar ini.")
-                        st.stop()
-
-                    # Tahap 2: Cari Titik Landmark (68 Titik)
-                    points = landmarks_68(predictor, gray, face)
-                    
-                    # (Opsional) Tampilkan Titik di Gambar Asli
-                    if show_landmarks:
-                        image_bgr = draw_landmarks(image_bgr, points)
-                    
-                    # Tahap 3: Cari Titik Tengah Mata Kiri dan Kanan
-                    left_eye = eye_center(points, LEFT_EYE)
-                    right_eye = eye_center(points, RIGHT_EYE)
-                    
-                    # Tahap 4: Rotasikan Gambar (serta titik koordinatnya) Berdasarkan Posisi Mata
-                    aligned_bgr, _ = rotate_to_align(image_bgr, left_eye, right_eye, points)
-                    
-                    # Konversi warna gambar hasil ke RGB untuk ditampilkan
-                    final_image = cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2RGB)
-                    
-                    with col2:
-                        st.subheader("📏 Gambar Hasil Pemrosesan")
+                        points = landmarks_68(predictor, gray, face)
+                        
+                        left_eye = eye_center(points, LEFT_EYE)
+                        right_eye = eye_center(points, RIGHT_EYE)
+                        
+                        aligned_bgr, _ = rotate_to_align(image_bgr, left_eye, right_eye, points)
+                        
+                        final_image = cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2RGB)
+                        
                         st.image(final_image, use_container_width=True)
-                        st.success("Wajah berhasil diproses!")
+                        st.success("✅ Wajah berhasil diluruskan!")
 
-                except Exception as e:
-                    st.error(f"Terjadi kesalahan saat memproses gambar: {e}")
+                    except Exception as e:
+                        st.error(f"Terjadi kesalahan saat memproses gambar: {e}")
+            else:
+                st.info("👈 Tekan tombol **✨ Luruskan Wajah** di panel sebelah kiri untuk melihat hasil.")
 
 if __name__ == "__main__":
     main()
