@@ -203,8 +203,7 @@ def main():
         display_bgr = image_bgr.copy()
         if face is not None:
             points = landmarks_68(predictor, gray, face)
-            for point in points:
-                cv2.circle(display_bgr, tuple(point), 3, (0, 255, 0), -1)
+            display_bgr = draw_landmarks(image_bgr, points)
                 
         display_rgb = cv2.cvtColor(display_bgr, cv2.COLOR_BGR2RGB)
         
