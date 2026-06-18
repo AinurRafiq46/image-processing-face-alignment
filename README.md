@@ -1,5 +1,9 @@
 # Face Alignment with dlib
 
+## 🚀 Live Demo
+Aplikasi ini dapat dicoba secara langsung melalui tautan berikut: 
+👉 **[https://image-processing-face-alignment.streamlit.app/](https://image-processing-face-alignment.streamlit.app/)**
+
 Proyek ini melakukan face alignment dengan `dlib` dan `OpenCV`. Program membaca semua gambar dari folder `image`, mendeteksi wajah, mengambil landmark mata, lalu menampilkan gambar asli dan hasil yang sudah diluruskan secara berdampingan.
 
 ## Fitur
